@@ -36,6 +36,9 @@ python -m src.cli list-models
 # Run evaluation with specific models
 python -m src.cli run --models gpt-4,claude-3-sonnet --benchmark humaneval
 
+# Run with local Ollama models
+python -m src.cli run --models llama3:8b,codellama:7b --benchmark humaneval
+
 # Run with custom options
 python -m src.cli run --models gpt-3.5-turbo --benchmark humaneval --problems-limit 5 --max-workers 2 --formats json,html
 ```
@@ -50,6 +53,10 @@ pip install -e .
 
 # Run CLI directly after installation
 evalagent run --models gpt-4 --benchmark humaneval
+
+# Ollama management commands
+python -m src.cli ollama-status
+python -m src.cli ollama-pull llama3:8b
 ```
 
 ## Architecture Overview

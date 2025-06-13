@@ -30,6 +30,21 @@ llm_apis:
     models:
       - "command-r"
       - "command-r-plus"
+  
+  ollama:
+    api_key: "not_required"  # Ollama doesn't require API keys
+    base_url: "http://localhost:11434"
+    models:
+      - "llama3:8b"
+      - "llama3:70b"
+      - "codellama:7b"
+      - "codellama:13b"
+      - "codellama:34b"
+      - "mistral:7b"
+      - "mixtral:8x7b"
+      - "vicuna:7b"
+      - "wizard-vicuna-uncensored:7b"
+      - "orca-mini:3b"
 
 # Evaluation Configuration
 evaluation:

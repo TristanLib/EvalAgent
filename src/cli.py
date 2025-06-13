@@ -167,6 +167,85 @@ def list_models(config: str):
 
 
 @cli.command()
+@click.option('--url', '-u', 
+              default='http://localhost:11434',
+              help='Ollama server URL')
+def ollama_status(url: str):
+    """Check Ollama server status and available models"""
+    
+    console.print("🦙 [bold blue]Ollama Server Status[/bold blue]")
+    console.print("=" * 30)
+    
+    from .llm_clients.ollama_client import OllamaClient
+    from .models import LLMConfig
+    
+    # Create a dummy config to check server status
+    config = LLMConfig(
+        name="ollama-check",
+        api_key="not_required",
+        base_url=url,
+        model_id="dummy"
+    )
+    
+    client = OllamaClient(config)
+    status = client.check_server_status()
+    
+    if status['status'] == 'running':
+        console.print(f"✅ [green]Server Status:[/green] {status['status'].title()}")
+        console.print(f"🌐 [bold]URL:[/bold] {status['url']}")
+        console.print(f"📊 [bold]Available Models:[/bold] {status['model_count']}")
+        
+        if status['available_models']:
+            console.print("\n📋 [bold]Models:[/bold]")
+            for model in status['available_models']:
+                console.print(f"  • {model}")
+        else:
+            console.print("\n[yellow]No models found. Use 'ollama pull <model>' to download models.[/yellow]")
+    
+    elif status['status'] == 'offline':
+        console.print(f"❌ [red]Server Status:[/red] Offline")
+        console.print(f"🌐 [bold]URL:[/bold] {status['url']}")
+        console.print(f"[yellow]Make sure Ollama is running: ollama serve[/yellow]")
+    
+    else:
+        console.print(f"⚠️  [yellow]Server Status:[/yellow] {status['status'].title()}")
+        console.print(f"🌐 [bold]URL:[/bold] {status['url']}")
+        console.print(f"[red]Error:[/red] {status.get('error', 'Unknown error')}")
+
+
+@cli.command()
+@click.argument('model_name')
+@click.option('--url', '-u', 
+              default='http://localhost:11434',
+              help='Ollama server URL')
+def ollama_pull(model_name: str, url: str):
+    """Pull a model to Ollama server"""
+    
+    console.print(f"🦙 [bold blue]Pulling Ollama Model: {model_name}[/bold blue]")
+    console.print("=" * 50)
+    
+    from .llm_clients.ollama_client import OllamaClient
+    from .models import LLMConfig
+    
+    config = LLMConfig(
+        name="ollama-pull",
+        api_key="not_required",
+        base_url=url,
+        model_id=model_name
+    )
+    
+    client = OllamaClient(config)
+    
+    with console.status(f"[bold green]Pulling {model_name}..."):
+        success = client.pull_model(model_name)
+    
+    if success:
+        console.print(f"✅ [green]Successfully pulled model: {model_name}[/green]")
+    else:
+        console.print(f"❌ [red]Failed to pull model: {model_name}[/red]")
+
+
+@cli.command()
 def init():
     """Initialize EvalAgent with example configuration"""
     

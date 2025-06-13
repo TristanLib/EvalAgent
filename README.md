@@ -38,7 +38,7 @@ cp config/config.example.yaml config/config.yaml
 # Edit config.yaml with your API keys
 
 # Run evaluation
-python -m evalagent --benchmark humaneval --models gpt-4,claude-3-sonnet --output results/
+python -m evalagent --benchmark humaneval --models gpt-4,claude-3-sonnet,llama3:8b --output results/
 ```
 
 ## Supported Benchmarks
@@ -50,11 +50,12 @@ python -m evalagent --benchmark humaneval --models gpt-4,claude-3-sonnet --outpu
 
 ## Supported LLMs
 
-- OpenAI (GPT-3.5, GPT-4, GPT-4-turbo)
-- Anthropic (Claude-3-haiku, Claude-3-sonnet, Claude-3-opus)
-- Google (Gemini Pro, Gemini Ultra)
-- Cohere (Command-R, Command-R+)
-- Open source models via Hugging Face
+- **OpenAI** (GPT-3.5, GPT-4, GPT-4-turbo)
+- **Anthropic** (Claude-3-haiku, Claude-3-sonnet, Claude-3-opus)
+- **Ollama** (Local models: Llama3, CodeLlama, Mistral, Mixtral, Vicuna, etc.)
+- **Google** (Gemini Pro, Gemini Ultra)
+- **Cohere** (Command-R, Command-R+)
+- **Open source models** via Hugging Face
 
 ## Evaluation Metrics
 
@@ -63,3 +64,54 @@ python -m evalagent --benchmark humaneval --models gpt-4,claude-3-sonnet --outpu
 - **Code Quality**: Style, complexity, and maintainability scores
 - **Performance**: Execution time and memory usage
 - **Security**: Static analysis for common vulnerabilities
+
+## Using Ollama (Local Models)
+
+EvalAgent supports local model evaluation via [Ollama](https://ollama.ai/), allowing you to test open-source models without API costs.
+
+### Setup Ollama
+
+1. **Install Ollama**:
+   ```bash
+   # macOS
+   brew install ollama
+   
+   # Linux
+   curl -fsSL https://ollama.ai/install.sh | sh
+   
+   # Windows: Download from https://ollama.ai/download
+   ```
+
+2. **Start Ollama server**:
+   ```bash
+   ollama serve
+   ```
+
+3. **Pull models for evaluation**:
+   ```bash
+   # Pull specific models
+   ollama pull llama3:8b
+   ollama pull codellama:7b
+   ollama pull mistral:7b
+   
+   # Or use EvalAgent to pull models
+   python -m src.cli ollama-pull llama3:8b
+   python -m src.cli ollama-pull codellama:13b
+   ```
+
+4. **Check server status**:
+   ```bash
+   python -m src.cli ollama-status
+   ```
+
+5. **Run evaluation with local models**:
+   ```bash
+   python -m src.cli run --models llama3:8b,codellama:7b,mistral:7b --benchmark humaneval
+   ```
+
+### Popular Coding Models for Ollama
+
+- **CodeLlama**: `codellama:7b`, `codellama:13b`, `codellama:34b`
+- **Llama3**: `llama3:8b`, `llama3:70b`
+- **Mistral**: `mistral:7b`, `mixtral:8x7b`
+- **Specialized**: `wizard-vicuna-uncensored:7b`, `orca-mini:3b`
