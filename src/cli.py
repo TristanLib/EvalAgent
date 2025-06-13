@@ -246,6 +246,248 @@ def ollama_pull(model_name: str, url: str):
 
 
 @cli.command()
+@click.option('--dataset', '-d',
+              help='Download specific dataset (humaneval, mbpp, humaneval_plus, mbpp_plus)')
+@click.option('--all', 'download_all', is_flag=True,
+              help='Download all available datasets')
+@click.option('--force', is_flag=True,
+              help='Force re-download even if dataset exists')
+def download_benchmarks(dataset: str, download_all: bool, force: bool):
+    """Download official benchmark datasets"""
+    
+    from .benchmarks.dataset_downloader import BenchmarkDownloader
+    
+    console.print("📥 [bold blue]Benchmark Dataset Downloader[/bold blue]")
+    console.print("=" * 40)
+    
+    downloader = BenchmarkDownloader()
+    
+    if download_all:
+        console.print("Downloading all available datasets...")
+        results = downloader.download_all(force=force)
+        
+        console.print("\n📊 [bold]Download Results:[/bold]")
+        for name, success in results.items():
+            status = "✅ Success" if success else "❌ Failed"
+            console.print(f"  • {name}: {status}")
+    
+    elif dataset:
+        if dataset not in downloader.DATASETS:
+            console.print(f"[red]Error: Unknown dataset '{dataset}'[/red]")
+            console.print("Available datasets:")
+            for name in downloader.DATASETS:
+                console.print(f"  • {name}")
+            return
+        
+        success = downloader.download_dataset(dataset, force=force)
+        if success:
+            console.print(f"✅ [green]Successfully downloaded {dataset}[/green]")
+        else:
+            console.print(f"❌ [red]Failed to download {dataset}[/red]")
+    
+    else:
+        # Show available datasets
+        console.print("📋 [bold]Available Benchmark Datasets[/bold]")
+        
+        datasets = downloader.list_available_datasets()
+        for name, info in datasets.items():
+            is_downloaded = downloader.is_downloaded(name)
+            status = "✅ Downloaded" if is_downloaded else "⬜ Not downloaded"
+            
+            console.print(f"\n[bold]{name}[/bold] - {status}")
+            console.print(f"  Description: {info['description']}")
+            console.print(f"  Size: {info['size']}")
+            console.print(f"  License: {info['license']}")
+            
+            if is_downloaded:
+                try:
+                    detailed_info = downloader.get_dataset_info(name)
+                    if 'problem_count' in detailed_info:
+                        console.print(f"  Problems: {detailed_info['problem_count']}")
+                    if 'local_size' in detailed_info:
+                        console.print(f"  Local size: {detailed_info['local_size']}")
+                except:
+                    pass
+        
+        console.print(f"\n💡 [yellow]Usage:[/yellow]")
+        console.print("  Download specific: evalagent download-benchmarks --dataset humaneval")
+        console.print("  Download all: evalagent download-benchmarks --all")
+
+
+@cli.command()
+@click.option('--benchmark', '-b',
+              type=click.Choice(['humaneval', 'mbpp', 'custom']),
+              default='humaneval',
+              help='Benchmark to inspect')
+@click.option('--problem-id', '-p',
+              help='Show details for specific problem ID')
+@click.option('--limit', '-l',
+              type=int, default=5,
+              help='Number of problems to show (default: 5)')
+@click.option('--show-tests', is_flag=True,
+              help='Show test cases for each problem')
+def inspect_benchmarks(benchmark: str, problem_id: str, limit: int, show_tests: bool):
+    """Inspect benchmark problems and test cases"""
+    
+    console.print(f"🔍 [bold blue]Inspecting {benchmark.title()} Benchmark[/bold blue]")
+    console.print("=" * 50)
+    
+    from .benchmarks import BenchmarkLoader
+    from .models import BenchmarkType
+    
+    try:
+        loader = BenchmarkLoader()
+        benchmark_type = BenchmarkType(benchmark)
+        problems = loader.load_benchmark(benchmark_type)
+        
+        console.print(f"📊 [bold]Total problems:[/bold] {len(problems)}")
+        
+        if problem_id:
+            # Show specific problem
+            problem = next((p for p in problems if p.id == problem_id), None)
+            if not problem:
+                console.print(f"[red]Problem '{problem_id}' not found[/red]")
+                console.print("Available problem IDs:")
+                for p in problems[:10]:
+                    console.print(f"  • {p.id}")
+                return
+            
+            problems = [problem]
+            limit = 1
+        
+        # Show problems
+        for i, problem in enumerate(problems[:limit]):
+            console.print(f"\n📋 [bold]Problem {i+1}: {problem.id}[/bold]")
+            console.print(f"Title: {problem.title}")
+            console.print(f"Difficulty: {problem.difficulty}")
+            console.print(f"Category: {problem.category}")
+            
+            console.print(f"\n[bold]Description:[/bold]")
+            console.print(problem.description[:200] + "..." if len(problem.description) > 200 else problem.description)
+            
+            console.print(f"\n[bold]Function signature:[/bold]")
+            console.print(problem.function_signature)
+            
+            if problem.docstring:
+                console.print(f"\n[bold]Docstring:[/bold]")
+                console.print(problem.docstring)
+            
+            if show_tests:
+                console.print(f"\n[bold]Test cases ({len(problem.test_cases)}):[/bold]")
+                for j, test_case in enumerate(problem.test_cases):
+                    console.print(f"  Test {j+1}:")
+                    console.print(f"    Type: {test_case.test_type}")
+                    if test_case.input_data:
+                        console.print(f"    Input: {test_case.input_data}")
+                    if test_case.expected_output:
+                        console.print(f"    Expected: {test_case.expected_output}")
+            else:
+                console.print(f"\n[bold]Test cases:[/bold] {len(problem.test_cases)} (use --show-tests to view)")
+            
+            if i < len(problems[:limit]) - 1:
+                console.print("-" * 50)
+        
+        if len(problems) > limit and not problem_id:
+            console.print(f"\n... and {len(problems) - limit} more problems")
+            console.print(f"Use --limit {len(problems)} to see all")
+    
+    except Exception as e:
+        console.print(f"[red]Error loading benchmark: {e}[/red]")
+
+
+@cli.command()
+@click.argument('benchmark_report_path')
+@click.option('--format', 'output_format',
+              type=click.Choice(['summary', 'detailed', 'problems']),
+              default='summary',
+              help='Report detail level')
+def show_test_results(benchmark_report_path: str, output_format: str):
+    """Show which tests were used and their results from a completed benchmark"""
+    
+    console.print("📊 [bold blue]Benchmark Test Results Analysis[/bold blue]")
+    console.print("=" * 50)
+    
+    try:
+        import json
+        
+        with open(benchmark_report_path, 'r') as f:
+            report_data = json.load(f)
+        
+        metadata = report_data.get('metadata', {})
+        console.print(f"📋 [bold]Benchmark:[/bold] {metadata.get('benchmark_type', 'Unknown')}")
+        console.print(f"🕐 [bold]Date:[/bold] {metadata.get('report_generated', 'Unknown')}")
+        console.print(f"🤖 [bold]Models:[/bold] {', '.join(metadata.get('models_evaluated', []))}")
+        console.print(f"📊 [bold]Total Problems:[/bold] {metadata.get('problems_count', 0)}")
+        console.print(f"🧪 [bold]Total Evaluations:[/bold] {metadata.get('total_evaluations', 0)}")
+        
+        if output_format == 'summary':
+            # Show summary statistics
+            summary = report_data.get('summary', {})
+            if 'statistics' in summary:
+                overall = summary['statistics'].get('overall', {})
+                console.print(f"\n📈 [bold]Overall Results:[/bold]")
+                console.print(f"  Success Rate: {overall.get('overall_success_rate', 0) * 100:.1f}%")
+                console.print(f"  Avg Execution Time: {overall.get('average_execution_time', 0):.3f}s")
+                console.print(f"  Avg Quality Score: {overall.get('average_quality_score', 0):.1f}")
+        
+        elif output_format == 'detailed':
+            # Show detailed results for each model
+            detailed_results = report_data.get('detailed_results', [])
+            
+            # Group by model
+            by_model = {}
+            for result in detailed_results:
+                model = result['model_name']
+                if model not in by_model:
+                    by_model[model] = []
+                by_model[model].append(result)
+            
+            for model, results in by_model.items():
+                console.print(f"\n🤖 [bold]{model}[/bold]")
+                passed = sum(1 for r in results if r['execution_result']['passed'])
+                console.print(f"  Results: {passed}/{len(results)} passed ({passed/len(results)*100:.1f}%)")
+                
+                failed_problems = [r['problem_id'] for r in results if not r['execution_result']['passed']]
+                if failed_problems:
+                    console.print(f"  Failed problems: {', '.join(failed_problems[:5])}")
+                    if len(failed_problems) > 5:
+                        console.print(f"    ... and {len(failed_problems) - 5} more")
+        
+        elif output_format == 'problems':
+            # Show results per problem
+            detailed_results = report_data.get('detailed_results', [])
+            
+            # Group by problem
+            by_problem = {}
+            for result in detailed_results:
+                problem = result['problem_id']
+                if problem not in by_problem:
+                    by_problem[problem] = []
+                by_problem[problem].append(result)
+            
+            console.print(f"\n📋 [bold]Problem-wise Results:[/bold]")
+            for problem_id, results in sorted(by_problem.items()):
+                passed = sum(1 for r in results if r['execution_result']['passed'])
+                console.print(f"\n  {problem_id}: {passed}/{len(results)} models passed")
+                
+                for result in results:
+                    status = "✅" if result['execution_result']['passed'] else "❌"
+                    model = result['model_name']
+                    console.print(f"    {status} {model}")
+                    
+                    if not result['execution_result']['passed'] and result['execution_result']['error_message']:
+                        error = result['execution_result']['error_message'][:100]
+                        console.print(f"      Error: {error}...")
+    
+    except FileNotFoundError:
+        console.print(f"[red]Report file not found: {benchmark_report_path}[/red]")
+    except json.JSONDecodeError:
+        console.print(f"[red]Invalid JSON format in report file[/red]")
+    except Exception as e:
+        console.print(f"[red]Error reading report: {e}[/red]")
+
+
+@cli.command()
 def init():
     """Initialize EvalAgent with example configuration"""
     

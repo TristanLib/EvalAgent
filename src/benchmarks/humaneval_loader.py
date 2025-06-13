@@ -2,25 +2,32 @@
 
 import json
 import os
+import re
 from typing import List, Dict, Any
 from ..models import Problem, TestCase
+from .dataset_downloader import BenchmarkDownloader
 
 
 class HumanEvalLoader:
     """Loader for HumanEval benchmark dataset"""
     
-    def __init__(self, data_path: str = "benchmarks/humaneval"):
+    def __init__(self, data_path: str = "benchmarks"):
         self.data_path = data_path
+        self.downloader = BenchmarkDownloader(data_path)
     
-    def load_problems(self) -> List[Problem]:
+    def load_problems(self, use_official: bool = True) -> List[Problem]:
         """Load HumanEval problems"""
         
-        # First try to load from local file
-        local_path = os.path.join(self.data_path, "humaneval.jsonl")
-        if os.path.exists(local_path):
-            return self._load_from_file(local_path)
+        if use_official:
+            # Try to load official HumanEval dataset
+            if self.downloader.is_downloaded('humaneval'):
+                dataset_path = self.downloader.get_dataset_path('humaneval')
+                return self._load_from_file(str(dataset_path))
+            else:
+                print("Official HumanEval dataset not found. Use 'download-benchmarks' command to download it.")
+                print("Using sample problems instead...")
         
-        # If not found, create sample HumanEval-style problems
+        # Fallback to sample problems
         return self._create_sample_problems()
     
     def _load_from_file(self, filepath: str) -> List[Problem]:
@@ -79,18 +86,59 @@ class HumanEvalLoader:
         return '\n'.join(docstring_lines).strip()
     
     def _extract_test_cases(self, test_string: str) -> List[TestCase]:
-        """Extract test cases from test string (simplified)"""
-        # This is a simplified implementation
-        # In practice, you'd need to parse and execute the test code
+        """Extract test cases from HumanEval test string"""
         test_cases = []
         
-        # For now, create dummy test cases
-        # In a real implementation, you'd parse the test code and extract assertions
-        test_cases.append(TestCase(
-            input_data=None,  # Would extract from test code
-            expected_output=None,  # Would extract from test code
-            test_type="assertion"
-        ))
+        if not test_string.strip():
+            # Create a basic test case if no tests provided
+            test_cases.append(TestCase(
+                input_data=None,
+                expected_output=None,
+                test_type="basic"
+            ))
+            return test_cases
+        
+        # Parse assertion statements from test string
+        # HumanEval tests typically have patterns like:
+        # assert function_name(input) == expected_output
+        
+        lines = test_string.split('\n')
+        for line in lines:
+            line = line.strip()
+            if line.startswith('assert ') and '==' in line:
+                try:
+                    # Extract function call and expected result
+                    # This is a simplified parser - real implementation would be more robust
+                    assertion = line[7:]  # Remove 'assert '
+                    if '==' in assertion:
+                        call_part, expected_part = assertion.split('==', 1)
+                        call_part = call_part.strip()
+                        expected_part = expected_part.strip()
+                        
+                        # Extract function arguments (simplified)
+                        if '(' in call_part and ')' in call_part:
+                            func_call = call_part
+                            
+                            test_cases.append(TestCase(
+                                input_data=func_call,  # Store the full function call
+                                expected_output=expected_part,
+                                test_type="assertion"
+                            ))
+                except:
+                    # If parsing fails, create a generic test case
+                    test_cases.append(TestCase(
+                        input_data=line,
+                        expected_output="parse_error",
+                        test_type="assertion"
+                    ))
+        
+        # If no test cases were extracted, create a basic one
+        if not test_cases:
+            test_cases.append(TestCase(
+                input_data="No parseable tests",
+                expected_output=None,
+                test_type="basic"
+            ))
         
         return test_cases
     

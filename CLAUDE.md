@@ -57,6 +57,11 @@ evalagent run --models gpt-4 --benchmark humaneval
 # Ollama management commands
 python -m src.cli ollama-status
 python -m src.cli ollama-pull llama3:8b
+
+# Benchmark management commands
+python -m src.cli download-benchmarks --all
+python -m src.cli inspect-benchmarks --benchmark humaneval --show-tests
+python -m src.cli show-test-results results/benchmark_report_*.json
 ```
 
 ## Architecture Overview

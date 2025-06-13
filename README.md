@@ -43,10 +43,29 @@ python -m evalagent --benchmark humaneval --models gpt-4,claude-3-sonnet,llama3:
 
 ## Supported Benchmarks
 
-- **HumanEval**: 164 Python programming problems
-- **MBPP**: 974 basic programming problems  
-- **BigCodeBench**: Complex real-world coding tasks
+EvalAgent supports both **official third-party benchmarks** and **custom evaluation criteria**:
+
+### Official Benchmarks
+- **HumanEval**: 164 Python programming problems from OpenAI
+- **MBPP**: 974 basic programming problems from Google Research  
+- **HumanEval+**: Enhanced version with more comprehensive test cases
+- **MBPP+**: Enhanced version with more comprehensive test cases
 - **Custom**: Define your own evaluation criteria
+
+### Benchmark Management
+```bash
+# Download official benchmark datasets
+python -m src.cli download-benchmarks --all
+
+# Download specific benchmark
+python -m src.cli download-benchmarks --dataset humaneval
+
+# Inspect benchmark problems and tests
+python -m src.cli inspect-benchmarks --benchmark humaneval --show-tests
+
+# View test results from completed evaluation
+python -m src.cli show-test-results results/benchmark_report_*.json --format detailed
+```
 
 ## Supported LLMs
 

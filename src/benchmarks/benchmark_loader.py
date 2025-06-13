@@ -3,6 +3,7 @@
 from typing import List
 from ..models import Problem, BenchmarkType
 from .humaneval_loader import HumanEvalLoader
+from .mbpp_loader import MBPPLoader
 
 
 class BenchmarkLoader:
@@ -11,7 +12,7 @@ class BenchmarkLoader:
     def __init__(self):
         self.loaders = {
             BenchmarkType.HUMANEVAL: HumanEvalLoader(),
-            BenchmarkType.MBPP: self._create_mbpp_loader(),
+            BenchmarkType.MBPP: MBPPLoader(),
             BenchmarkType.CUSTOM: self._create_custom_loader()
         }
     
@@ -24,11 +25,6 @@ class BenchmarkLoader:
         loader = self.loaders[benchmark_type]
         return loader.load_problems()
     
-    def _create_mbpp_loader(self):
-        """Create MBPP benchmark loader (placeholder)"""
-        # This would be implemented to load MBPP benchmark
-        # For now, return a dummy loader that creates sample problems
-        return SampleLoader("MBPP")
     
     def _create_custom_loader(self):
         """Create custom benchmark loader (placeholder)"""
